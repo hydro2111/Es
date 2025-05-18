@@ -1,0 +1,270 @@
+import heapq
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# Resource definitions and budget
+resources = {
+    "Food Pack": {"cost": 500, "available": 100},
+    "Hygiene Kit": {"cost": 300, "available": 80},
+    "Medical Kit": {"cost": 400, "available": 50},
+    "Shelter Kit": {"cost": 600, "available": 40}
+}
+
+budget = 150000
+
+# Priors for vulnerability (formerly damage)
+vulnerability_priors = {"low": 0.3, "medium": 0.4, "high": 0.3}
+
+# Prior for household sizes (adjusted as per your requests)
+size_priors = {
+    2: 0.113,
+    3: 0.169,
+    4: 0.452,
+    5: 0.226,
+    6: 0.03,
+    7: 0.01
+}
+
+# Likelihoods for vulnerability reporting
+vulnerability_likelihoods = {
+    "low": {"low": 0.8, "medium": 0.15, "high": 0.05},
+    "medium": {"low": 0.1, "medium": 0.8, "high": 0.1},
+    "high": {"low": 0.05, "medium": 0.15, "high": 0.8}
+}
+
+vulnerability_weights = {"low": 1, "medium": 2, "high": 3}
+
+def bayesian_vulnerability_score(reported):
+    posterior = {}
+    total = 0
+    for true_level in vulnerability_priors:
+        likelihood = vulnerability_likelihoods[true_level][reported]
+        prior = vulnerability_priors[true_level]
+        posterior[true_level] = likelihood * prior
+        total += posterior[true_level]
+    for k in posterior:
+        posterior[k] /= total
+    return sum(vulnerability_weights[k] * posterior[k] for k in posterior)
+
+def size_likelihood(true_size, reported_size):
+    diff = abs(true_size - reported_size)
+    if diff == 0: return 0.7
+    elif diff == 1: return 0.2
+    elif diff == 2: return 0.1
+    return 0.01
+
+def bayesian_expected_members(reported_size):
+    posterior = {}
+    total = 0
+    for true_size in size_priors:
+        likelihood = size_likelihood(true_size, reported_size)
+        prior = size_priors[true_size]
+        posterior[true_size] = likelihood * prior
+        total += posterior[true_size]
+    for k in posterior:
+        posterior[k] /= total
+    return sum(k * posterior[k] for k in posterior)
+
+class Household:
+    def __init__(self, id, true_ages, reported_size, reported_vulnerability):
+        self.id = id
+        self.ages = true_ages
+        self.reported_size = reported_size
+        self.true_size = len(true_ages)
+        self.children = sum(1 for a in true_ages if a < 18)
+        self.elderly = sum(1 for a in true_ages if a > 60)
+        self.reported_vulnerability = reported_vulnerability
+
+        self.expected_members = bayesian_expected_members(reported_size)
+        self.expected_vulnerability_score = bayesian_vulnerability_score(reported_vulnerability)
+
+        self.priority = self.calculate_priority()
+
+    def calculate_priority(self):
+        return (
+            self.expected_members * 5 +
+            self.children * 10 +
+            self.elderly * 15 +
+            self.expected_vulnerability_score * 25
+        )
+
+    def __lt__(self, other):
+        return self.priority > other.priority  # max heap behavior
+
+def generate_households(n):
+    households = []
+    possible_sizes = list(size_priors.keys())
+    size_probs = list(size_priors.values())
+    vulnerability_levels = list(vulnerability_priors.keys())
+    vulnerability_probs = list(vulnerability_priors.values())
+
+    for i in range(n):
+        true_size = np.random.choice(possible_sizes, p=size_probs)
+        ages = np.random.randint(1, 90, size=true_size).tolist()
+
+        report_noise = np.random.choice([-1, 0, 1], p=[0.2, 0.6, 0.2])
+        reported_size = max(2, min(7, true_size + report_noise))
+
+        reported_vulnerability = np.random.choice(vulnerability_levels, p=vulnerability_probs)
+
+        households.append(Household(i + 1, ages, reported_size, reported_vulnerability))
+    return households
+
+def simulate_allocation(households):
+    queue = []
+    for h in households:
+        heapq.heappush(queue, h)
+
+    allocations = []
+    remaining_budget = budget
+    resource_state = {k: v['available'] for k, v in resources.items()}
+
+    while queue:
+        h = heapq.heappop(queue)
+        h_alloc = {}
+        total_cost = 0
+
+        food = max(1, int(round(h.expected_members / 3)))
+        hygiene = max(1, int(round(h.expected_members / 4)))
+        medical = 1 if h.elderly > 0 or h.children > 0 else 0
+        shelter = 1 if h.expected_vulnerability_score >= 2.5 else 0
+
+        needs = {
+            "Food Pack": food,
+            "Hygiene Kit": hygiene,
+            "Medical Kit": medical,
+            "Shelter Kit": shelter
+        }
+
+        for item, qty in needs.items():
+            cost = qty * resources[item]["cost"]
+            if qty <= resource_state[item] and remaining_budget >= cost:
+                h_alloc[item] = qty
+                resource_state[item] -= qty
+                remaining_budget -= cost
+                total_cost += cost
+            else:
+                h_alloc[item] = 0
+
+        allocations.append({
+            "Household ID": h.id,
+            "True Ages": h.ages,
+            "True Size": h.true_size,
+            "Reported Size": h.reported_size,
+            "Expected Size": round(h.expected_members, 2),
+            "Children": h.children,
+            "Elderly": h.elderly,
+            "Reported Vulnerability": h.reported_vulnerability,
+            "Expected Vulnerability Score": round(h.expected_vulnerability_score, 2),
+            "Priority": round(h.priority, 2),
+            **h_alloc,
+            "Total Cost": total_cost
+        })
+
+    return allocations, remaining_budget
+
+# Generate and simulate
+households = generate_households(100)
+alloc_data, remaining = simulate_allocation(households)
+df = pd.DataFrame(alloc_data)
+
+pd.set_option('display.max_columns', None)
+print(df.head(10))
+
+print(f"\nRemaining Budget: ₱{remaining:,}")
+print(f"Total Households Served: {len(df[df[['Food Pack', 'Hygiene Kit', 'Medical Kit', 'Shelter Kit']].sum(axis=1) > 0])}")
+
+df["Total Items Allocated"] = df[["Food Pack", "Hygiene Kit", "Medical Kit", "Shelter Kit"]].sum(axis=1)
+
+# Best-case: Top 5 households by priority that received >80% of estimated needs
+best_case = df.sort_values("Priority", ascending=False).head(20)
+best_case = best_case[best_case["Total Items Allocated"] > 3]  # Assuming 4 is full need
+
+# Worst-case: Top 20 households by priority that received <1 item
+worst_case = df.sort_values("Priority", ascending=False).head(20)
+worst_case = worst_case[worst_case["Total Items Allocated"] <= 1]
+
+# Average case: Summary stats
+avg_priority = df["Priority"].mean()
+avg_items = df["Total Items Allocated"].mean()
+avg_cost = df["Total Cost"].mean()
+
+print(f"\n--- Best-Case (Top households well served) ---")
+print(best_case[["Household ID", "Priority", "Total Items Allocated", "Total Cost"]])
+
+print(f"\n--- Worst-Case (Top households poorly served) ---")
+print(worst_case[["Household ID", "Priority", "Total Items Allocated", "Total Cost"]])
+
+print(f"\n--- Average-Case Summary ---")
+print(f"Average Priority: {avg_priority:.2f}")
+print(f"Average Items Allocated per Household: {avg_items:.2f}")
+print(f"Average Cost per Household: ₱{avg_cost:,.2f}")
+
+# === PLOTS ===
+
+plt.figure(figsize=(18, 5))
+
+# Subplot 1: Household size distribution
+plt.subplot(1, 3, 1)
+plt.hist(df["True Size"], bins=np.arange(1.5, 8.5, 1), edgecolor='black', alpha=0.7)
+plt.title("Distribution of Household True Sizes")
+plt.xlabel("Household Size")
+plt.ylabel("Count")
+
+# Subplot 2: Grouped bar chart of resource allocation by age group
+plt.subplot(1, 3, 2)
+group_resource_alloc = {"Children": {}, "Adults": {}, "Elderly": {}}
+age_groups = ["Children", "Adults", "Elderly"]
+
+# Initialize zero counts
+for group in age_groups:
+    for res in resources:
+        group_resource_alloc[group][res] = 0
+
+# Aggregate allocation
+for _, row in df.iterrows():
+    for res in resources:
+        total = row[res]
+        ages = row["True Ages"]
+        children = sum(1 for a in ages if a < 18)
+        elderly = sum(1 for a in ages if a > 60)
+        adults = len(ages) - children - elderly
+        total_people = len(ages)
+        if total_people == 0: continue
+        group_resource_alloc["Children"][res] += total * (children / total_people)
+        group_resource_alloc["Adults"][res] += total * (adults / total_people)
+        group_resource_alloc["Elderly"][res] += total * (elderly / total_people)
+
+# Plot grouped bars
+width = 0.2
+x = np.arange(len(resources))
+colors = {"Children": "skyblue", "Adults": "lightgreen", "Elderly": "salmon"}
+
+for i, group in enumerate(age_groups):
+    vals = np.array([group_resource_alloc[group][res] for res in resources])
+    plt.bar(x + i * width, vals, width=width, label=group, color=colors[group], edgecolor='black')
+
+plt.xticks(x + width, list(resources.keys()))
+plt.ylabel("Estimated Resource Units Allocated")
+plt.title("Resource Allocation by Age Group")
+plt.legend()
+
+# Subplot 3: Total cost per household sorted by priority
+plt.subplot(1, 3, 3)
+df_sorted = df.sort_values(by="Priority", ascending=False).reset_index(drop=True)
+plt.bar(df_sorted.index + 1, df_sorted["Total Cost"], color='lightgreen', edgecolor='black')
+plt.title("Total Cost Allocated per Household (Sorted by Priority)")
+plt.xlabel("Households (sorted)")
+plt.ylabel("Total Cost Allocated (₱)")
+
+plt.tight_layout()
+plt.show()
+
+# Separate plot: Reported vulnerability distribution
+plt.figure(figsize=(6,4))
+df["Reported Vulnerability"].value_counts().plot(kind='bar', color='skyblue', edgecolor='black')
+plt.title("Reported Vulnerability Levels")
+plt.xlabel("Vulnerability Level")
+plt.ylabel("Count")
+plt.show()
