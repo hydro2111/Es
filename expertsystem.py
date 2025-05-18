@@ -81,7 +81,7 @@ class ExpertSystem:
         sorting households by the maximum age present in each household."""
         sorted_households = sorted(
             self.households, 
-            key=lambda h: max(h["ages"]) if h["ages"] else 0, 
+            key=lambda h: h["priority_score"], 
             reverse=True
         )
         
@@ -543,10 +543,9 @@ class BarangayResourceApp(tk.Tk):
         # If a household has no ages listed (empty list), it's treated as having a max age of 0.
         sorted_display_households = sorted(
             self.expert_system.households,
-            key=lambda h: max(h["ages"]) if h["ages"] else 0,
+            key=lambda h: h["priority_score"],
             reverse=True
         )
-
         for household in sorted_display_households:
             max_age = max(household["ages"]) if household["ages"] else "N/A"
             self.household_tree.insert("", tk.END, values=(
