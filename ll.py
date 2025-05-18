@@ -895,9 +895,7 @@ class BarangayResourceApp(tk.Tk):
                 file.write("household size for food packs, and specific needs (school supplies, medical kits)\n")
                 file.write("after the primary sorting by max age.\n\n")
 
-                file.write("Treas. (Weng Panganiban): The current allocation uses ")
-                percentage = (self.expert_system.total_cost / self.expert_system.budget) * 100 if self.expert_system.budget > 0 else 0
-                file.write(f"{percentage:.1f}% of the available budget.\n")
+                file.write("Treas. (Weng Panganiban): The current allocation utilized a portion of the available budget for resource distribution.\n")
 
             # === 7. Notify user ===
             messagebox.showinfo("Export Complete", 
