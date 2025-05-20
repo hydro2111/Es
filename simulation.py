@@ -20,7 +20,7 @@ class DisasterAllocationGUI:
         self.root = root
         self.root.title("Disaster Resource Allocation System")
         self.root.geometry("1400x900")
-        self.root.state('zoomed')  # Maximize window
+        self.root.state('zoomed')  
 
         # Initialize variables
         self.households = []
@@ -28,7 +28,7 @@ class DisasterAllocationGUI:
         self.simulation_running = False
         self.result_queue = queue.Queue()
 
-        # Resource definitions and budget
+        # Resource definitions and budget 
         self.resources = {
             "Food Pack": {"cost": 500, "available": 100},
             "Hygiene Kit": {"cost": 300, "available": 80},

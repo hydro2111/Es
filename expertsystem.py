@@ -279,7 +279,7 @@ class BarangayResourceApp(tk.Tk):
         
         style.configure("Green.TButton", 
                         background=COLORS["medium_green"], 
-                        foreground=COLORS["bg_white"],
+                        foreground=COLORS["text_black"],
                         font=("Arial", 10, "bold"))
         
         style.configure("Treeview", 
