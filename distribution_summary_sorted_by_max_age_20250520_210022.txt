@@ -1,0 +1,33 @@
+BARANGAY RESOURCE DISTRIBUTION SUMMARY (Sorted by Max Household Age)
+============================================================
+
+Date: May 20, 2025
+Total Budget: ₱150,000
+Total Cost of Allocations: ₱30,300
+Remaining Budget: ₱119,700
+
+RESOURCE SUMMARY (After Allocation)
+----------------------------------------
+Food Pack: 171 units remaining at ₱500 each
+Hygiene Kit: 176 units remaining at ₱300 each
+Medical Kit: 196 units remaining at ₱400 each
+School Supplies: 172 units remaining at ₱250 each
+
+HOUSEHOLD SUMMARY
+----------------------------------------
+Total Households Processed: 20
+Total Children Under 5: 0
+Total School-age Children: 28
+Total Elderly (60+): 8
+
+EXPERT TEAM NOTES (Allocation based on Max Household Age)
+------------------------------------------------------------
+Barangay Captain (Kap. Rosalie Mauricio): Resources were allocated prioritizing
+households with the eldest members first. Vulnerability factors like young children
+and elderly members within those households were then considered for specific kit types.
+
+Councilor for Distribution (Kgd. Romy Colubong): Distribution plan accounts for
+household size for food packs, and specific needs (school supplies, medical kits)
+after the primary sorting by max age.
+
+Treas. (Weng Panganiban): The current allocation utilized a portion of the available budget for resource distribution.
